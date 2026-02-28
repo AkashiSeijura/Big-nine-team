@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(start_email_polling(interval=60))
+    task = asyncio.create_task(start_email_polling(interval=15))
     try:
         yield
     finally:

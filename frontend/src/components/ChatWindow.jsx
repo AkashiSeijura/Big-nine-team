@@ -10,7 +10,7 @@ export default function ChatWindow({ ticket, onTicketUpdate }) {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
 
-  const canRespond = ticket?.status === 'needs_operator';
+  const canRespond = ticket?.status !== 'closed';
 
   useEffect(() => {
     if (!ticket) { setMessages([]); return; }
@@ -20,13 +20,9 @@ export default function ChatWindow({ ticket, onTicketUpdate }) {
     setInput('');
   }, [ticket?.id]);
 
-  // Re-check canRespond when ticket status changes (e.g. from parent update)
   useEffect(() => {
-    if (ticket?.status === 'needs_operator') {
-      // refresh messages to show any new ones
-      if (ticket?.id) {
-        fetchChat(ticket.id).then(setMessages).catch(() => {});
-      }
+    if (ticket?.id) {
+      fetchChat(ticket.id).then(setMessages).catch(() => {});
     }
   }, [ticket?.status]);
 
@@ -36,7 +32,7 @@ export default function ChatWindow({ ticket, onTicketUpdate }) {
 
   async function handleSend() {
     const text = input.trim();
-    if (!text || sending || !canRespond) return;
+    if (!text || sending || !ticket || ticket.status === 'closed') return;
     setSending(true);
     setInput('');
 
@@ -70,7 +66,9 @@ export default function ChatWindow({ ticket, onTicketUpdate }) {
     <div className="chat-window">
       <div className="chat-header">
         <span className="chat-title">Чат с AI-ассистентом</span>
-        {canRespond && <span className="chat-status-badge">🟢 Оператор подключён</span>}
+        {ticket?.status === 'needs_operator' && (
+          <span className="chat-status-badge">🟢 Оператор подключён</span>
+        )}
       </div>
 
       <div className="chat-messages">
@@ -91,7 +89,11 @@ export default function ChatWindow({ ticket, onTicketUpdate }) {
         <div ref={bottomRef} />
       </div>
 
-      {canRespond ? (
+      {ticket?.status === 'closed' ? (
+        <div className="chat-locked">
+          Заявка закрыта
+        </div>
+      ) : (
         <div className="chat-input-row">
           <textarea
             className="chat-input"
@@ -109,10 +111,6 @@ export default function ChatWindow({ ticket, onTicketUpdate }) {
           >
             {sending ? '...' : 'Отправить'}
           </button>
-        </div>
-      ) : (
-        <div className="chat-locked">
-          🔒 Ввод заблокирован — оператор подключится после того, как клиент напишет «вызвать оператора»
         </div>
       )}
     </div>

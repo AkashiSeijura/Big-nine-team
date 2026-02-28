@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import aiosmtplib
+from sqlalchemy import select, desc
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -103,6 +104,20 @@ def _fetch_unseen_emails() -> list[dict]:
     return messages
 
 
+async def _find_open_ticket_by_email(sender_email: str) -> int | None:
+    """Return the most recent non-closed ticket id for this email, or None."""
+    if not sender_email:
+        return None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(Ticket.id)
+            .where(Ticket.email == sender_email, Ticket.status != "closed")
+            .order_by(desc(Ticket.date_received))
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+
 async def _handle_email_reply(msg: dict, ticket_id: int) -> None:
     """Client replied to an existing ticket — add message to chat."""
     async with AsyncSessionLocal() as session:
@@ -187,7 +202,13 @@ async def poll_imap_once() -> None:
         if reply_ticket_id:
             await _handle_email_reply(msg, reply_ticket_id)
         else:
-            await _handle_new_email(msg)
+            # If no [#N] in subject, check if sender has an open ticket
+            existing_id = await _find_open_ticket_by_email(msg["email"])
+            if existing_id:
+                logger.info(f"Email from {msg['email']} → existing ticket #{existing_id}")
+                await _handle_email_reply(msg, existing_id)
+            else:
+                await _handle_new_email(msg)
 
 
 async def send_email_response(

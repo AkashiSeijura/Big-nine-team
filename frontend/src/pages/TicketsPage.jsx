@@ -18,6 +18,7 @@ export default function TicketsPage() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [filters, setFilters] = useState({ status: '', sentiment: '', category: '', search: '' });
   const [activeTab, setActiveTab] = useState('Запросы');
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [showProfile, setShowProfile] = useState(false);
@@ -122,6 +123,25 @@ export default function TicketsPage() {
     setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
   }
 
+  function handleFilterChange(key, value) {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  }
+
+  const displayedTickets = tickets.filter((t) => {
+    if (filters.status && t.status !== filters.status) return false;
+    if (filters.sentiment && t.sentiment !== filters.sentiment) return false;
+    if (filters.category && t.category !== filters.category) return false;
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      if (
+        !(t.full_name || '').toLowerCase().includes(q) &&
+        !(t.summary || '').toLowerCase().includes(q) &&
+        !(t.email || '').toLowerCase().includes(q)
+      ) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="crm-layout">
       <header className="crm-header">
@@ -213,7 +233,13 @@ export default function TicketsPage() {
         ) : (
           <div className="crm-body">
             <div className="crm-sidebar" style={{ width: sidebarWidth }}>
-              <TicketsList tickets={tickets} selectedId={selected?.id} onSelect={setSelected} />
+              <TicketsList
+                tickets={displayedTickets}
+                selectedId={selected?.id}
+                onSelect={setSelected}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+              />
             </div>
             <div className="crm-resize-handle" onMouseDown={onMouseDown} />
             <div className="crm-detail">
