@@ -113,8 +113,7 @@ async def _handle_email_reply(msg: dict, ticket_id: int) -> None:
         session.add(ChatMessage(ticket_id=ticket_id, role="user", text=msg["body"]))
 
         if "вызвать оператора" in msg["body"].lower():
-            t.status = "needs_operator"
-            logger.info(f"Ticket #{ticket_id} → needs_operator")
+            logger.info(f"Ticket #{ticket_id} requested operator")
 
         await session.commit()
     logger.info(f"Added client reply to ticket #{ticket_id}")

@@ -8,8 +8,8 @@
 }
 
 .status-badge--open {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #e0f2fe;
+  color: #0369a1;
 }
 
 .status-badge--in_progress {
@@ -23,6 +23,16 @@
 }
 
 .status-badge--closed {
-  background: #d1fae5;
-  color: #065f46;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.status-badge--resolved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge--unresolved {
+  background: #fee2e2;
+  color: #991b1b;
 }

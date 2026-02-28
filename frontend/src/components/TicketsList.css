@@ -56,15 +56,43 @@
   padding-left: 13px;
 }
 
-.ticket-card--needs-operator {
-  background: #fef9c3;
-  border-left: 3px solid #eab308;
-  padding-left: 13px;
+.ticket-card.ticket-card--green {
+  background-color: rgba(34, 197, 94, 0.30);
 }
 
-.ticket-card--needs-operator.ticket-card--active {
-  background: #fde047;
-  border-left: 3px solid #ca8a04;
+.ticket-card.ticket-card--green:hover {
+  background-color: rgba(34, 197, 94, 0.40);
+}
+
+.ticket-card.ticket-card--green.ticket-card--active {
+  background-color: rgba(34, 197, 94, 0.50);
+  border-left-color: #15803d;
+}
+
+.ticket-card.ticket-card--red {
+  background-color: rgba(239, 68, 68, 0.30);
+}
+
+.ticket-card.ticket-card--red:hover {
+  background-color: rgba(239, 68, 68, 0.40);
+}
+
+.ticket-card.ticket-card--red.ticket-card--active {
+  background-color: rgba(239, 68, 68, 0.50);
+  border-left-color: #b91c1c;
+}
+
+.ticket-card.ticket-card--orange {
+  background-color: rgba(249, 115, 22, 0.30);
+}
+
+.ticket-card.ticket-card--orange:hover {
+  background-color: rgba(249, 115, 22, 0.40);
+}
+
+.ticket-card.ticket-card--orange.ticket-card--active {
+  background-color: rgba(249, 115, 22, 0.50);
+  border-left-color: #c2410c;
 }
 
 .ticket-card-meta {
@@ -101,6 +129,7 @@
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

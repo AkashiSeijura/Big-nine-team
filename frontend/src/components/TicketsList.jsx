@@ -1,10 +1,9 @@
 import './TicketsList.css';
 
 const STATUS_ICON = {
-  open: { icon: '👤', label: 'Нужна помощь' },
+  open: { icon: '👤', label: 'Открытые' },
   in_progress: { icon: '⏳', label: 'В процессе' },
-  needs_operator: { icon: '🆘', label: 'Нужен оператор' },
-  closed: { icon: '✅', label: 'Закрыто' },
+  closed: { icon: '✅', label: 'Закрытые' },
 };
 
 function fmt(dateStr) {
@@ -23,10 +22,22 @@ export default function TicketsList({ tickets, selectedId, onSelect }) {
       <div className="tickets-list-body">
         {tickets.map((ticket) => {
           const status = STATUS_ICON[ticket.status] || STATUS_ICON.open;
+
+          let colorClass = '';
+          if (ticket.status === 'closed') {
+            colorClass = 'ticket-card--green';
+          } else if (ticket.category === 'malfunction' && ticket.status !== 'closed') {
+            colorClass = 'ticket-card--red';
+          } else if (ticket.status === 'open') {
+            colorClass = 'ticket-card--orange';
+          }
+
+          const activeClass = selectedId === ticket.id ? 'ticket-card--active' : '';
+
           return (
             <div
               key={ticket.id}
-              className={`ticket-card ${selectedId === ticket.id ? 'ticket-card--active' : ''} ${ticket.status === 'needs_operator' ? 'ticket-card--needs-operator' : ''}`}
+              className={`ticket-card ${activeClass} ${colorClass}`}
               onClick={() => onSelect(ticket)}
             >
               <div className="ticket-card-main">
