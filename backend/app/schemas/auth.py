@@ -16,10 +16,10 @@ class UserOut(BaseModel):
     email: str
     full_name: str
     role: str
-    telegram_id: int | None = None
+    telegram_ids: list[int] = []
 
     model_config = {"from_attributes": True}
 
 
 class UserUpdate(BaseModel):
-    telegram_id: int | None = None
+    telegram_ids: list[int] | None = None

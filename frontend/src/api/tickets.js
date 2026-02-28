@@ -58,11 +58,11 @@ export async function fetchMe() {
   return await res.json();
 }
 
-export async function updateProfile(telegram_id) {
+export async function updateProfile(telegram_ids) {
   const res = await fetch(`${API_BASE}/api/auth/me`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ telegram_id }),
+    body: JSON.stringify({ telegram_ids }),
   });
   if (!res.ok) throw new Error('Server error');
   return await res.json();

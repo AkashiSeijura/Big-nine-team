@@ -241,6 +241,51 @@
   font-weight: 600;
 }
 
+.crm-profile-tg-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.crm-profile-tg-row .crm-profile-input {
+  flex: 1;
+}
+
+.crm-profile-tg-remove {
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.crm-profile-tg-remove:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.crm-profile-tg-add {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border: 1px dashed #94a3b8;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.crm-profile-tg-add:hover {
+  color: #1e3a8a;
+  border-color: #1e3a8a;
+}
+
 /* ── Body ────────────────────────────────────────── */
 .crm-body {
   display: flex;

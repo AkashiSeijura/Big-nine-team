@@ -22,7 +22,7 @@ export default function TicketsPage() {
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [showProfile, setShowProfile] = useState(false);
   const [profileData, setProfileData] = useState(null);
-  const [tgInput, setTgInput] = useState('');
+  const [tgIds, setTgIds] = useState([]);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState('');
   const dragging = useRef(false);
@@ -84,7 +84,7 @@ export default function TicketsPage() {
   async function handleOpenProfile() {
     const data = await fetchMe();
     setProfileData(data);
-    setTgInput(data.telegram_id ? String(data.telegram_id) : '');
+    setTgIds((data.telegram_ids || []).map(String));
     setProfileMsg('');
     setShowProfile(true);
   }
@@ -92,9 +92,10 @@ export default function TicketsPage() {
   async function handleSaveProfile() {
     setProfileSaving(true);
     try {
-      const tgId = tgInput.trim() ? parseInt(tgInput.trim(), 10) : null;
-      const updated = await updateProfile(tgId);
+      const ids = tgIds.map((v) => parseInt(v.trim(), 10)).filter((v) => !isNaN(v) && v > 0);
+      const updated = await updateProfile(ids);
       setProfileData(updated);
+      setTgIds((updated.telegram_ids || []).map(String));
       setProfileMsg('Сохранено');
       setTimeout(() => setProfileMsg(''), 2000);
     } catch {
@@ -102,6 +103,18 @@ export default function TicketsPage() {
     } finally {
       setProfileSaving(false);
     }
+  }
+
+  function handleTgIdChange(index, value) {
+    setTgIds((prev) => prev.map((v, i) => (i === index ? value : v)));
+  }
+
+  function handleTgIdRemove(index) {
+    setTgIds((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleTgIdAdd() {
+    setTgIds((prev) => [...prev, '']);
   }
 
   return (
@@ -151,13 +164,23 @@ export default function TicketsPage() {
                 </div>
                 <div className="crm-profile-field">
                   <label className="crm-profile-label">Telegram ID</label>
-                  <input
-                    className="crm-profile-input"
-                    type="number"
-                    placeholder="Ваш числовой Telegram ID"
-                    value={tgInput}
-                    onChange={(e) => setTgInput(e.target.value)}
-                  />
+                  {tgIds.map((val, idx) => (
+                    <div key={idx} className="crm-profile-tg-row">
+                      <input
+                        className="crm-profile-input"
+                        type="number"
+                        placeholder="Числовой Telegram ID"
+                        value={val}
+                        onChange={(e) => handleTgIdChange(idx, e.target.value)}
+                      />
+                      <button
+                        className="crm-profile-tg-remove"
+                        onClick={() => handleTgIdRemove(idx)}
+                        title="Удалить"
+                      >✕</button>
+                    </div>
+                  ))}
+                  <button className="crm-profile-tg-add" onClick={handleTgIdAdd}>+ Добавить ID</button>
                   <span className="crm-profile-hint">Узнать ID можно через @userinfobot в Telegram</span>
                 </div>
                 <div className="crm-profile-actions">

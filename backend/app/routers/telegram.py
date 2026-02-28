@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserTelegramId
 from app.models.ticket import Ticket
 from app.config import settings
 
@@ -18,12 +19,14 @@ def verify_bot_secret(x_bot_secret: str | None = Header(default=None)):
 @router.get("/allowed-users", dependencies=[Depends(verify_bot_secret)])
 async def allowed_users(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(User).where(User.telegram_id.isnot(None))
+        select(User).options(selectinload(User.telegram_ids))
     )
     users = result.scalars().all()
+    all_tg_ids = [t.telegram_id for u in users for t in u.telegram_ids]
+    admin_tg_ids = [t.telegram_id for u in users if u.role == "admin" for t in u.telegram_ids]
     return {
-        "users": [u.telegram_id for u in users],
-        "admins": [u.telegram_id for u in users if u.role == "admin"],
+        "users": all_tg_ids,
+        "admins": admin_tg_ids,
     }
 
 
