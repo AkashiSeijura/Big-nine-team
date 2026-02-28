@@ -13,7 +13,8 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.chat_message import ChatMessage
 from app.models.ticket import Ticket
-from app.services.ai_service import analyze_ticket_with_ai
+from sqlalchemy import select, desc
+from app.services.ai_service import analyze_ticket_with_ai, generate_customer_reply
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ def _fetch_unseen_emails() -> list[dict]:
 
 
 async def poll_imap_once() -> None:
-    """Fetch unseen emails, create Ticket records, trigger AI analysis."""
+    """Fetch unseen emails, create/append Ticket records, trigger AI analysis."""
     loop = asyncio.get_event_loop()
     messages = await loop.run_in_executor(None, _fetch_unseen_emails)
 
@@ -106,29 +107,69 @@ async def poll_imap_once() -> None:
     logger.info(f"Fetched {len(messages)} new email(s)")
 
     for msg in messages:
-        # 1. Create ticket
-        ticket_id: int
-        async with AsyncSessionLocal() as session:
-            ticket = Ticket(
-                date_received=msg["date"],
-                email=msg["email"],
-                original_email=(
-                    f"От: {msg['from']}\nТема: {msg['subject']}\n\n{msg['body']}"
-                ),
-                status="open",
-            )
-            session.add(ticket)
-            await session.commit()
-            await session.refresh(ticket)
-            ticket_id = ticket.id
-            ticket_text = ticket.original_email
-
-        # 2. AI analysis (separate session to avoid long-lived transactions)
         try:
-            ai_result = await analyze_ticket_with_ai(ticket_text)
             async with AsyncSessionLocal() as session:
-                t = await session.get(Ticket, ticket_id)
-                if t:
+                query = select(Ticket).where(
+                    Ticket.email == msg["email"],
+                    Ticket.status != "closed"
+                ).order_by(desc(Ticket.date_received)).limit(1)
+                result = await session.execute(query)
+                existing_ticket = result.scalars().first()
+
+                if existing_ticket:
+                    # APPEND TO EXISTING TICKET
+                    ticket_id = existing_ticket.id
+                    user_msg_text = f"От: {msg['from']}\nТема: {msg['subject']}\n\n{msg['body']}"
+                    
+                    user_msg = ChatMessage(ticket_id=ticket_id, role="user", text=user_msg_text)
+                    session.add(user_msg)
+                    
+                    # Intercept call for operator
+                    if "вызвать оператора" in msg["body"].lower():
+                        existing_ticket.status = "needs_operator"
+                        bot_text = "Оператор подключен к диалогу. Ожидайте ответа."
+                        bot_msg = ChatMessage(ticket_id=ticket_id, role="bot", text=bot_text)
+                        session.add(bot_msg)
+                        await session.commit()
+                        
+                        await send_email_response(msg["email"], msg["subject"], bot_text)
+                        continue
+                    
+                    await session.commit()
+                    
+                    # Generate AI Reply based on chat history
+                    chat_query = select(ChatMessage).where(ChatMessage.ticket_id == ticket_id).order_by(ChatMessage.created_at)
+                    chat_res = await session.execute(chat_query)
+                    history = [{"role": m.role, "text": m.text} for m in chat_res.scalars().all()]
+                    
+                    draft = await generate_customer_reply(existing_ticket.original_email, history)
+                    bot_text = draft + "\n\n💡 Если нужно вызвать оператора, напишите — вызвать оператора"
+                    
+                    bot_msg = ChatMessage(ticket_id=ticket_id, role="bot", text=bot_text)
+                    session.add(bot_msg)
+                    await session.commit()
+                    
+                    await send_email_response(msg["email"], msg["subject"], bot_text)
+                    
+                else:
+                    # CREATE NEW TICKET
+                    ticket = Ticket(
+                        date_received=msg["date"],
+                        email=msg["email"],
+                        original_email=(f"От: {msg['from']}\nТема: {msg['subject']}\n\n{msg['body']}"),
+                        status="open",
+                    )
+                    session.add(ticket)
+                    await session.commit()
+                    await session.refresh(ticket)
+                    
+                    # Out of transaction AI Call
+                    ticket_id = ticket.id
+                    ticket_text = ticket.original_email
+                    ai_result = await analyze_ticket_with_ai(ticket_text)
+                    
+                    # Update fields
+                    t = await session.get(Ticket, ticket_id)
                     t.sentiment = ai_result.get("sentiment")
                     t.category = ai_result.get("category")
                     t.ai_response = ai_result.get("draft_response")
@@ -138,28 +179,24 @@ async def poll_imap_once() -> None:
                     t.device_serials = ai_result.get("device_serials") or []
                     t.device_type = ai_result.get("device_type")
                     t.summary = ai_result.get("summary")
+                    
+                    user_msg = ChatMessage(ticket_id=ticket_id, role="user", text=ticket_text)
+                    session.add(user_msg)
+
+                    draft = ai_result.get("draft_response", "")
+                    bot_text = draft + "\n\n💡 Если нужно вызвать оператора, напишите — вызвать оператора"
+                    bot_msg = ChatMessage(ticket_id=ticket_id, role="bot", text=bot_text)
+                    session.add(bot_msg)
+                    
+                    if "вызвать оператора" in msg["body"].lower():
+                         t.status = "needs_operator"
+                         
                     await session.commit()
-
-            # 3. Populate chat: client email → AI response with operator hint
-            async with AsyncSessionLocal() as session:
-                user_msg = ChatMessage(
-                    ticket_id=ticket_id,
-                    role="user",
-                    text=f"От: {msg['from']}\nТема: {msg['subject']}\n\n{msg['body']}",
-                )
-                session.add(user_msg)
-
-                draft = ai_result.get("draft_response", "")
-                bot_text = (
-                    draft
-                    + "\n\n💡 Если нужно вызвать оператора, напишите — вызвать оператора"
-                )
-                bot_msg = ChatMessage(ticket_id=ticket_id, role="bot", text=bot_text)
-                session.add(bot_msg)
-                await session.commit()
+                    
+                    await send_email_response(msg["email"], msg["subject"], bot_text)
 
         except Exception as e:
-            logger.error(f"AI analysis error for ticket {ticket_id}: {e}")
+            logger.error(f"Error processing email from {msg.get('email')}: {e}")
 
 
 async def send_email_response(to_email: str, subject: str, body: str) -> None:

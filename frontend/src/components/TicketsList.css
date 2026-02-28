@@ -56,6 +56,17 @@
   padding-left: 13px;
 }
 
+.ticket-card--needs-operator {
+  background: #fef9c3;
+  border-left: 3px solid #eab308;
+  padding-left: 13px;
+}
+
+.ticket-card--needs-operator.ticket-card--active {
+  background: #fde047;
+  border-left: 3px solid #ca8a04;
+}
+
 .ticket-card-meta {
   display: flex;
   justify-content: space-between;

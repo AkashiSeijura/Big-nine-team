@@ -3,6 +3,7 @@ import './TicketsList.css';
 const STATUS_ICON = {
   open: { icon: '👤', label: 'Нужна помощь' },
   in_progress: { icon: '⏳', label: 'В процессе' },
+  needs_operator: { icon: '🆘', label: 'Нужен оператор' },
   closed: { icon: '✅', label: 'Закрыто' },
 };
 
@@ -25,7 +26,7 @@ export default function TicketsList({ tickets, selectedId, onSelect }) {
           return (
             <div
               key={ticket.id}
-              className={`ticket-card ${selectedId === ticket.id ? 'ticket-card--active' : ''}`}
+              className={`ticket-card ${selectedId === ticket.id ? 'ticket-card--active' : ''} ${ticket.status === 'needs_operator' ? 'ticket-card--needs-operator' : ''}`}
               onClick={() => onSelect(ticket)}
             >
               <div className="ticket-card-main">

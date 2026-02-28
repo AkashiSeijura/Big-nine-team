@@ -25,16 +25,7 @@ async def lifespan(app: FastAPI):
             pass
 
 
-logger = logging.getLogger(__name__)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: запускаем фоновое прослушивание почты
-    listener_task = asyncio.create_task(email_listener_loop())
-    yield
-    # Shutdown: останавливаем задачу
-    listener_task.cancel()
-    
 app = FastAPI(
     title="ЭРИС — Служба технической поддержки",
     version="1.0.0",
