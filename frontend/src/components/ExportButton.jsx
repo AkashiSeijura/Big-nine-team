@@ -1,25 +1,29 @@
 import * as XLSX from 'xlsx';
 import './ExportButton.css';
 
+const SENTIMENT_RU = { positive: 'Позитивная', neutral: 'Нейтральная', negative: 'Негативная' };
+const CATEGORY_RU = { malfunction: 'Неисправность', calibration: 'Калибровка', documentation: 'Документация', other: 'Прочее' };
+const STATUS_RU = { open: 'Новая', in_progress: 'В работе', needs_operator: 'Нужен оператор', closed: 'Закрыта' };
+
 const HEADERS = [
-  'ID', 'Дата', 'ФИО', 'Объект', 'Телефон', 'Email',
-  'Зав. номера', 'Тип прибора', 'Тональность', 'Категория', 'Суть вопроса', 'Статус',
+  'ID', 'Дата', 'ФИО', 'Объект / предприятие', 'Телефон', 'Email',
+  'Зав. номера приборов', 'Тип приборов', 'Тональность', 'Категория', 'Суть вопроса', 'Статус',
 ];
 
 function toRows(tickets) {
   return tickets.map((t) => [
     t.id,
     new Date(t.date_received).toLocaleString('ru-RU'),
-    t.full_name,
-    t.company,
-    t.phone,
-    t.email,
-    t.device_serials.join('; '),
-    t.device_type,
-    t.sentiment,
-    t.category,
-    t.summary,
-    t.status,
+    t.full_name ?? '',
+    t.company ?? '',
+    t.phone ?? '',
+    t.email ?? '',
+    (t.device_serials || []).join('; '),
+    t.device_type ?? '',
+    SENTIMENT_RU[t.sentiment] ?? t.sentiment ?? '',
+    CATEGORY_RU[t.category] ?? t.category ?? '',
+    t.summary ?? '',
+    STATUS_RU[t.status] ?? t.status ?? '',
   ]);
 }
 

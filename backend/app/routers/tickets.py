@@ -1,4 +1,7 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,7 +14,7 @@ from app.schemas.chat import ChatMessageOut, ChatMessageCreate
 from app.routers.auth import get_current_user
 from app.models.user import User
 from app.services.ai_service import analyze_ticket_with_ai, generate_chat_reply
-from app.services.email_service import send_email_response
+from app.services.email_service import send_email_response, send_chat_message_to_client
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 
@@ -162,13 +165,16 @@ async def add_chat_message(
 
     msg = ChatMessage(ticket_id=ticket_id, role=payload.role, text=payload.text)
     db.add(msg)
-
-    # Если оператор запрашивает человека — обновляем статус
-    if "вызвать оператора" in payload.text.lower():
-        ticket.status = "needs_operator"
-
     await db.commit()
     await db.refresh(msg)
+
+    # Отправить email клиенту при ответе оператора
+    if payload.role == "operator" and ticket.email:
+        try:
+            await send_chat_message_to_client(ticket.email, payload.text, ticket_id)
+        except Exception as exc:
+            logger.warning(f"Failed to email client for ticket {ticket_id}: {exc}")
+
     return msg
 
 
@@ -197,4 +203,12 @@ async def ai_chat_reply(
     db.add(bot_msg)
     await db.commit()
     await db.refresh(bot_msg)
+
+    # Email client the AI reply
+    if ticket.email:
+        try:
+            await send_chat_message_to_client(ticket.email, reply_text, ticket_id)
+        except Exception as exc:
+            logger.warning(f"Failed to email client AI reply for ticket {ticket_id}: {exc}")
+
     return bot_msg
