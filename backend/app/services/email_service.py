@@ -12,6 +12,9 @@ from app.database import AsyncSessionLocal
 from app.models.ticket import Ticket
 from app.routers.tickets import process_ticket_ai
 
+import sys
+
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 async def process_email(raw_email_bytes: bytes):
@@ -68,7 +71,9 @@ async def email_listener_loop():
             imap_client = aioimaplib.IMAP4_SSL(host=settings.IMAP_HOST, port=settings.IMAP_PORT)
             await imap_client.wait_hello_from_server()
             await imap_client.login(settings.EMAIL_USER, settings.EMAIL_PASSWORD)
+            logger.info("IMAP: Успешная авторизация")
             await imap_client.select('INBOX')
+            logger.info("IMAP: Папка INBOX выбрана, начинаем цикл проверки...")
             
             while True:
                 # Ищем только новые (непрочитанные) письма
@@ -76,6 +81,7 @@ async def email_listener_loop():
                 
                 if resp == 'OK' and data and data[0]:
                     message_numbers = data[0].split()
+                    logger.info(f"IMAP: Найдено новых писем: {len(message_numbers)}")
                     for num_bytes in message_numbers:
                         num = num_bytes.decode('utf-8')
                         res, msg_data = await imap_client.fetch(num, '(RFC822)')
