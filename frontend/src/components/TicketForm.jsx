@@ -6,10 +6,9 @@ import './TicketForm.css';
 
 const SENTIMENT_EMOJI = { positive: '😊', neutral: '😐', negative: '😠' };
 const STATUS_LABEL = {
-  open: 'Нужна помощь 👤',
+  open: 'Открытые 👤',
   in_progress: 'В процессе ⏳',
-  needs_operator: 'Нужна помощь оператора 🆘',
-  closed: 'Закрыто ✅',
+  closed: 'Закрытые ✅',
 };
 const CATEGORY_LABEL = {
   malfunction: 'Неисправность',
@@ -36,6 +35,16 @@ export default function TicketForm({ ticket, onTicketUpdate }) {
     }
   }
 
+  async function handleStatusChange(e) {
+    const newStatus = e.target.value;
+    try {
+      const updated = await updateTicketStatus(ticket.id, newStatus);
+      if (onTicketUpdate) onTicketUpdate(updated);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   if (!ticket) {
     return (
       <div className="ticket-form ticket-form--empty">
@@ -47,8 +56,20 @@ export default function TicketForm({ ticket, onTicketUpdate }) {
     );
   }
 
+  const statusSelect = (
+    <select
+      className="tf-status-select"
+      value={ticket.status}
+      onChange={handleStatusChange}
+    >
+      {Object.entries(STATUS_LABEL).map(([val, label]) => (
+        <option key={val} value={val}>{label}</option>
+      ))}
+    </select>
+  );
+
   const rows = [
-    ['Дата поступления', fmt(ticket.date_received), 'Статус', STATUS_LABEL[ticket.status]],
+    ['Дата поступления', fmt(ticket.date_received), 'Статус', statusSelect],
     ['ФИО отправителя', ticket.full_name, 'Email', ticket.email],
     ['Объект / предприятие', ticket.company, 'Телефон', ticket.phone],
     ['Заводские номера', (ticket.device_serials || []).join(', '), 'Тип приборов', ticket.device_type],

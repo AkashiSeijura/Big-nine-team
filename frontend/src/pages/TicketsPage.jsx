@@ -18,7 +18,7 @@ export default function TicketsPage() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
-  const [filters, setFilters] = useState({ status: '', sentiment: '', category: '', search: '' });
+  const [filters, setFilters] = useState({ status: 'active', sentiment: '', category: '', search: '' });
   const [activeTab, setActiveTab] = useState('Запросы');
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [showProfile, setShowProfile] = useState(false);
@@ -128,7 +128,13 @@ export default function TicketsPage() {
   }
 
   const displayedTickets = tickets.filter((t) => {
-    if (filters.status && t.status !== filters.status) return false;
+    if (filters.status) {
+      if (filters.status === 'active') {
+        if (t.status === 'closed') return false;
+      } else if (t.status !== filters.status) {
+        return false;
+      }
+    }
     if (filters.sentiment && t.sentiment !== filters.sentiment) return false;
     if (filters.category && t.category !== filters.category) return false;
     if (filters.search) {
@@ -140,6 +146,23 @@ export default function TicketsPage() {
       ) return false;
     }
     return true;
+  }).sort((a, b) => {
+    // priority logic
+    const getPriority = (ticket) => {
+      if (ticket.category === 'malfunction' && ticket.status !== 'closed') return 1; // Red
+      if (ticket.status === 'open') return 2; // Orange
+      if (ticket.status === 'in_progress') return 3; // Yellow
+      return 4; // Green / Closed
+    };
+
+    const prioA = getPriority(a);
+    const prioB = getPriority(b);
+
+    if (prioA !== prioB) {
+      return prioA - prioB;
+    }
+    // If same priority, sort by date desc
+    return new Date(b.date_received) - new Date(a.date_received);
   });
 
   return (

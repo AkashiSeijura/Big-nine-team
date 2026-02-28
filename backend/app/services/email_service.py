@@ -15,7 +15,8 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.chat_message import ChatMessage
 from app.models.ticket import Ticket
-from app.services.ai_service import analyze_ticket_with_ai
+from sqlalchemy import select, desc
+from app.services.ai_service import analyze_ticket_with_ai, generate_customer_reply
 
 logger = logging.getLogger(__name__)
 
@@ -127,8 +128,7 @@ async def _handle_email_reply(msg: dict, ticket_id: int) -> None:
         session.add(ChatMessage(ticket_id=ticket_id, role="user", text=msg["body"]))
 
         if "вызвать оператора" in msg["body"].lower():
-            t.status = "needs_operator"
-            logger.info(f"Ticket #{ticket_id} → needs_operator")
+            logger.info(f"Ticket #{ticket_id} requested operator")
 
         await session.commit()
     logger.info(f"Added client reply to ticket #{ticket_id}")

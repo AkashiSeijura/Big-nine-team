@@ -1,9 +1,8 @@
 import './TicketsList.css';
 
 const STATUS_ICON = {
-  open: { icon: '👤', label: 'Нужна помощь' },
+  open: { icon: '👤', label: 'Открытые' },
   in_progress: { icon: '⏳', label: 'В процессе' },
-  needs_operator: { icon: '🆘', label: 'Нужен оператор' },
   closed: { icon: '✅', label: 'Закрыто' },
 };
 
@@ -15,7 +14,7 @@ function fmt(dateStr) {
 
 export default function TicketsList({ tickets, selectedId, onSelect, filters, onFilterChange }) {
   const hasActiveFilter =
-    filters.status || filters.sentiment || filters.category || filters.search;
+    (filters.status && filters.status !== 'active') || filters.sentiment || filters.category || filters.search;
 
   return (
     <aside className="tickets-list">
@@ -36,7 +35,7 @@ export default function TicketsList({ tickets, selectedId, onSelect, filters, on
             <button
               className="tickets-filter-reset"
               onClick={() => {
-                onFilterChange('status', '');
+                onFilterChange('status', 'active');
                 onFilterChange('sentiment', '');
                 onFilterChange('category', '');
                 onFilterChange('search', '');
@@ -54,9 +53,9 @@ export default function TicketsList({ tickets, selectedId, onSelect, filters, on
             onChange={(e) => onFilterChange('status', e.target.value)}
           >
             <option value="">Все статусы</option>
+            <option value="active">Только активные</option>
             <option value="open">Новая</option>
             <option value="in_progress">В работе</option>
-            <option value="needs_operator">Нужен оператор</option>
             <option value="closed">Закрыта</option>
           </select>
           <select
@@ -89,10 +88,20 @@ export default function TicketsList({ tickets, selectedId, onSelect, filters, on
         ) : (
           tickets.map((ticket) => {
             const status = STATUS_ICON[ticket.status] || STATUS_ICON.open;
+
+            let colorClass = '';
+            if (ticket.status === 'closed') {
+              colorClass = 'ticket-card--green';
+            } else if (ticket.category === 'malfunction' && ticket.status !== 'closed') {
+              colorClass = 'ticket-card--red';
+            } else if (ticket.status === 'open') {
+              colorClass = 'ticket-card--orange';
+            }
+
             return (
               <div
                 key={ticket.id}
-                className={`ticket-card ${selectedId === ticket.id ? 'ticket-card--active' : ''}`}
+                className={`ticket-card ${selectedId === ticket.id ? 'ticket-card--active' : ''} ${colorClass}`}
                 onClick={() => onSelect(ticket)}
               >
                 <div className="ticket-card-main">

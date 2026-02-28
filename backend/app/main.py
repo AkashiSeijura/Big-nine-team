@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
             pass
 
 
+
 app = FastAPI(
     title="ЭРИС — Служба технической поддержки",
     version="1.0.0",
@@ -32,6 +33,7 @@ app = FastAPI(
     redoc_url="/api/redoc",
     lifespan=lifespan,
 )
+
 
 app.add_middleware(
     CORSMiddleware,

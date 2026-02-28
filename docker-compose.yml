@@ -58,6 +58,8 @@ services:
       - "8182:8183"
     volumes:
       - ./tg_notification_bot:/app
+    # ЗАГЛУШКА: временно отключаем бота, чтобы не конфликтовал с коллегой
+    command: ["tail", "-f", "/dev/null"]
 
 volumes:
   postgres_data:

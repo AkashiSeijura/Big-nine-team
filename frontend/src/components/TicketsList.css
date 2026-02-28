@@ -120,6 +120,11 @@
 .tickets-list-body {
   overflow-y: auto;
   flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f8fbff;
 }
 
 .tickets-empty {
@@ -130,20 +135,64 @@
 }
 
 .ticket-card {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f7ff;
+  padding: 12px 14px 12px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: all 0.15s ease;
+  background: #fff;
+  border-left: 4px solid transparent;
 }
 
 .ticket-card:hover {
-  background: #f0f7ff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
 }
 
 .ticket-card--active {
-  background: #eff6ff;
-  border-left: 3px solid #2563eb;
-  padding-left: 13px;
+  background: #f8fafc;
+  border-color: #bfdbfe;
+  box-shadow: 0 0 0 1px #bfdbfe;
+}
+
+/* Priority Borders */
+.ticket-card.ticket-card--green {
+  border-left-color: #22c55e;
+}
+
+.ticket-card.ticket-card--green:hover {
+  border-color: #86efac;
+}
+
+.ticket-card.ticket-card--green.ticket-card--active {
+  border-color: #4ade80;
+  background: #f0fdf4;
+}
+
+.ticket-card.ticket-card--red {
+  border-left-color: #ef4444;
+}
+
+.ticket-card.ticket-card--red:hover {
+  border-color: #fca5a5;
+}
+
+.ticket-card.ticket-card--red.ticket-card--active {
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+.ticket-card.ticket-card--orange {
+  border-left-color: #f97316;
+}
+
+.ticket-card.ticket-card--orange:hover {
+  border-color: #fdba74;
+}
+
+.ticket-card.ticket-card--orange.ticket-card--active {
+  border-color: #fb923c;
+  background: #fff7ed;
 }
 
 .ticket-card-meta {
@@ -180,6 +229,7 @@
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

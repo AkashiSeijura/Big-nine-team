@@ -150,3 +150,34 @@ async def generate_chat_reply(ticket_context: str, chat_history: list[dict]) -> 
     except Exception as e:
         logger.error(f"Chat reply generation error: {e}")
         return "Извините, не удалось сгенерировать ответ."
+
+
+async def generate_customer_reply(ticket_context: str, chat_history: list[dict]) -> str:
+    """Generate a contextual AI reply to send directly to the customer via email."""
+    if not groq_client:
+        return "ИИ-помощник временно недоступен."
+
+    system_prompt = (
+        "Вы — первая линия ИИ-поддержки компании ЭРИС (газоаналитическое оборудование). "
+        "Вы отвечаете клиенту по email, продолжая существующий диалог. "
+        "Отвечайте вежливо, компетентно и по существу на русском языке. "
+        "Если вы не знаете ответ на сложный технический вопрос, так и скажите, и упомяните, что передадите вопрос инженерам.\n\n"
+        f"Контекст изначальной заявки:\n{ticket_context}"
+    )
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for m in chat_history:
+        role = "assistant" if m["role"] == "bot" else "user"
+        messages.append({"role": role, "content": m["text"]})
+
+    try:
+        response = await groq_client.chat.completions.create(
+            messages=messages,
+            model="llama-3.3-70b-versatile",
+            temperature=0.3,
+            max_tokens=1024,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Customer reply generation error: {e}")
+        return "Извините, не удалось сгенерировать ответ для клиента."
