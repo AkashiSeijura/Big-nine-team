@@ -27,20 +27,36 @@ async def analyze_ticket_with_ai(ticket_text: str) -> dict:
         return {
             "sentiment": "neutral",
             "category": "other",
+            "full_name": None,
+            "company": None,
+            "phone": None,
+            "device_serials": [],
+            "device_type": None,
+            "summary": None,
             "draft_response": "Извините, в данный момент ИИ-помощник недоступен.",
-            "confidence": 0.0
+            "confidence": 0.0,
         }
 
     system_prompt = """
-    Вы — ИИ-агент технической поддержки (ЭРИС). Ваша задача проанализировать входящее обращение клиента.
-    Вам необходимо извлечь тональность (sentiment), категорию обращения (category) и сгенерировать черновик ответа (draft_response), а также указать вашу уверенность в ответе (confidence от 0.0 до 1.0).
-    
-    Ответьте ТОЛЬКО в формате JSON с ключами:
-    - "sentiment": строка (только "positive", "neutral" или "negative")
-    - "category": строка (одно из: "malfunction", "calibration", "documentation", "other")
-    - "draft_response": строка (подробный, вежливый ответ клиенту на русском языке)
-    - "confidence": число (например, 0.9)
-    """
+Вы — ИИ-агент технической поддержки компании ЭРИС (производитель газоаналитического оборудования).
+Ваша задача — проанализировать входящее обращение клиента и извлечь из него структурированную информацию.
+
+Правила определения типа прибора по заводскому номеру (9 цифр):
+- Первые три цифры — код модели. Примеры: 230 → «ДГС ЭРИС-230», 124 → «ДГС ЭРИС-124».
+- Если тип прибора явно указан в тексте — используйте его. Если нет — определяйте по первым трём цифрам серийного номера.
+
+Ответьте ТОЛЬКО в формате JSON со следующими ключами (все строки на русском, null если информация отсутствует):
+- "sentiment": "positive" | "neutral" | "negative" — эмоциональная тональность обращения
+- "category": "malfunction" | "calibration" | "documentation" | "other" — категория запроса
+- "full_name": строка или null — ФИО отправителя
+- "company": строка или null — название организации / объекта / предприятия
+- "phone": строка или null — номер телефона
+- "device_serials": массив строк — все найденные заводские номера приборов (9-значные числа), пустой массив если не найдены
+- "device_type": строка или null — тип(ы) прибора (определить по серийному номеру или из текста)
+- "summary": строка — краткое изложение сути обращения (1-3 предложения)
+- "draft_response": строка — подробный, вежливый ответ клиенту на русском языке
+- "confidence": число от 0.0 до 1.0 — уверенность в ответе
+"""
 
     try:
         response = await groq_client.chat.completions.create(
@@ -67,16 +83,26 @@ async def analyze_ticket_with_ai(ticket_text: str) -> dict:
         sentiment = result.get("sentiment", "neutral").lower()
         if sentiment not in ["positive", "neutral", "negative"]:
             sentiment = "neutral"
-            
+
         category = result.get("category", "other").lower()
         if category not in ["malfunction", "calibration", "documentation", "other"]:
             category = "other"
-            
+
+        device_serials = result.get("device_serials", [])
+        if not isinstance(device_serials, list):
+            device_serials = []
+
         return {
             "sentiment": sentiment,
             "category": category,
+            "full_name": result.get("full_name") or None,
+            "company": result.get("company") or None,
+            "phone": result.get("phone") or None,
+            "device_serials": [str(s) for s in device_serials],
+            "device_type": result.get("device_type") or None,
+            "summary": result.get("summary") or None,
             "draft_response": result.get("draft_response", ""),
-            "confidence": float(result.get("confidence", 1.0))
+            "confidence": float(result.get("confidence", 1.0)),
         }
         
     except Exception as e:
@@ -84,6 +110,43 @@ async def analyze_ticket_with_ai(ticket_text: str) -> dict:
         return {
             "sentiment": "neutral",
             "category": "other",
+            "full_name": None,
+            "company": None,
+            "phone": None,
+            "device_serials": [],
+            "device_type": None,
+            "summary": None,
             "draft_response": "Извините, произошла ошибка при генерации ответа.",
-            "confidence": 0.0
+            "confidence": 0.0,
         }
+
+
+async def generate_chat_reply(ticket_context: str, chat_history: list[dict]) -> str:
+    """Generate a contextual AI reply for the chat window."""
+    if not groq_client:
+        return "ИИ-помощник временно недоступен."
+
+    system_prompt = (
+        "Вы — ИИ-агент технической поддержки компании ЭРИС (газоаналитическое оборудование). "
+        "Вы ведёте диалог с оператором службы поддержки, помогая разобраться в обращении клиента. "
+        "Отвечайте кратко и по существу на русском языке. "
+        "Если не знаете точного ответа — скажите об этом и предложите варианты.\n\n"
+        f"Контекст заявки:\n{ticket_context}"
+    )
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for m in chat_history:
+        role = "assistant" if m["role"] == "bot" else "user"
+        messages.append({"role": role, "content": m["text"]})
+
+    try:
+        response = await groq_client.chat.completions.create(
+            messages=messages,
+            model="llama-3.3-70b-versatile",
+            temperature=0.5,
+            max_tokens=512,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Chat reply generation error: {e}")
+        return "Извините, не удалось сгенерировать ответ."

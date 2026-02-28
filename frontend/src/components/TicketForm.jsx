@@ -1,9 +1,16 @@
+import { useState } from 'react';
 import SentimentBadge from './SentimentBadge';
 import CategoryBadge from './CategoryBadge';
+import { updateTicketStatus } from '../api/tickets';
 import './TicketForm.css';
 
 const SENTIMENT_EMOJI = { positive: '😊', neutral: '😐', negative: '😠' };
-const STATUS_LABEL = { open: 'Нужна помощь 👤', in_progress: 'В процессе ⏳', closed: 'Закрыто ✅' };
+const STATUS_LABEL = {
+  open: 'Нужна помощь 👤',
+  in_progress: 'В процессе ⏳',
+  needs_operator: 'Нужна помощь оператора 🆘',
+  closed: 'Закрыто ✅',
+};
 const CATEGORY_LABEL = {
   malfunction: 'Неисправность',
   calibration: 'Калибровка',
@@ -15,7 +22,20 @@ function fmt(dateStr) {
   return new Date(dateStr).toLocaleString('ru-RU');
 }
 
-export default function TicketForm({ ticket }) {
+export default function TicketForm({ ticket, onTicketUpdate }) {
+  const [closing, setClosing] = useState(false);
+
+  async function handleClose() {
+    if (closing) return;
+    setClosing(true);
+    try {
+      const updated = await updateTicketStatus(ticket.id, 'closed');
+      if (onTicketUpdate) onTicketUpdate(updated);
+    } finally {
+      setClosing(false);
+    }
+  }
+
   if (!ticket) {
     return (
       <div className="ticket-form ticket-form--empty">
@@ -31,7 +51,7 @@ export default function TicketForm({ ticket }) {
     ['Дата поступления', fmt(ticket.date_received), 'Статус', STATUS_LABEL[ticket.status]],
     ['ФИО отправителя', ticket.full_name, 'Email', ticket.email],
     ['Объект / предприятие', ticket.company, 'Телефон', ticket.phone],
-    ['Заводские номера', ticket.device_serials.join(', '), 'Тип приборов', ticket.device_type],
+    ['Заводские номера', (ticket.device_serials || []).join(', '), 'Тип приборов', ticket.device_type],
     [
       'Эмоциональный окрас',
       <span key="sent" className="tf-sent-cell">
@@ -48,6 +68,14 @@ export default function TicketForm({ ticket }) {
     <div className="ticket-form">
       <div className="ticket-form-header">
         <span className="ticket-form-id">Заявка #{ticket.id}</span>
+        {ticket.status !== 'closed' && (
+          <button className="tf-close-btn" onClick={handleClose} disabled={closing}>
+            {closing ? 'Закрытие...' : '✓ Закрыть заявку'}
+          </button>
+        )}
+        {ticket.status === 'closed' && (
+          <span className="tf-closed-label">✅ Закрыта</span>
+        )}
       </div>
 
       <div className="ticket-form-table-wrap">

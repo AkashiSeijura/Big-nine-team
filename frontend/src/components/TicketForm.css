@@ -96,3 +96,32 @@
   align-items: center;
   gap: 6px;
 }
+
+.tf-close-btn {
+  margin-left: auto;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tf-close-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.tf-close-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tf-closed-label {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #065f46;
+}

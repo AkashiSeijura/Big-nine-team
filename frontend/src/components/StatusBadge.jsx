@@ -3,6 +3,7 @@ import './StatusBadge.css';
 const LABELS = {
   open: 'Новая',
   in_progress: 'В работе',
+  needs_operator: 'Нужен оператор',
   closed: 'Закрыта',
 };
 

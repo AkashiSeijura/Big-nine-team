@@ -52,6 +52,25 @@ export async function postChatMessage(ticketId, role, text) {
   return await res.json();
 }
 
+export async function updateTicketStatus(id, ticketStatus) {
+  const res = await fetch(`${API_BASE}/api/tickets/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status: ticketStatus }),
+  });
+  if (!res.ok) throw new Error('Server error');
+  return await res.json();
+}
+
+export async function getAiChatReply(ticketId) {
+  const res = await fetch(`${API_BASE}/api/tickets/${ticketId}/chat/reply`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Server error');
+  return await res.json();
+}
+
 export async function fetchMe() {
   const res = await fetch(`${API_BASE}/api/auth/me`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Server error');

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchChat, postChatMessage } from '../api/tickets';
+import { fetchChat, postChatMessage, getAiChatReply } from '../api/tickets';
 import './ChatWindow.css';
 
-export default function ChatWindow({ ticket }) {
+export default function ChatWindow({ ticket, onTicketUpdate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -21,15 +22,27 @@ export default function ChatWindow({ ticket }) {
 
   async function handleSend() {
     const text = input.trim();
-    if (!text) return;
+    if (!text || sending) return;
+    setSending(true);
     setInput('');
-    const saved = await postChatMessage(ticket.id, 'user', text);
-    setMessages((prev) => [...prev, saved]);
-    // Имитация ответа бота
-    setTimeout(async () => {
-      const botMsg = await postChatMessage(ticket.id, 'bot', 'Понял вас. Обрабатываю запрос, скоро отвечу.');
+
+    try {
+      const saved = await postChatMessage(ticket.id, 'user', text);
+      setMessages((prev) => [...prev, saved]);
+
+      // Если оператор запрашивает человека — обновляем статус в UI
+      if (text.toLowerCase().includes('вызвать оператора') && onTicketUpdate) {
+        onTicketUpdate({ ...ticket, status: 'needs_operator' });
+      }
+
+      // Реальный AI-ответ
+      const botMsg = await getAiChatReply(ticket.id);
       setMessages((prev) => [...prev, botMsg]);
-    }, 800);
+    } catch {
+      // ignore
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleKey(e) {
@@ -72,9 +85,10 @@ export default function ChatWindow({ ticket }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKey}
           rows={1}
+          disabled={sending}
         />
-        <button className="chat-send-btn" onClick={handleSend} disabled={!input.trim()}>
-          Отправить
+        <button className="chat-send-btn" onClick={handleSend} disabled={!input.trim() || sending}>
+          {sending ? '...' : 'Отправить'}
         </button>
       </div>
     </div>

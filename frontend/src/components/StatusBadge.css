@@ -17,6 +17,11 @@
   color: #92400e;
 }
 
+.status-badge--needs_operator {
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+
 .status-badge--closed {
   background: #d1fae5;
   color: #065f46;

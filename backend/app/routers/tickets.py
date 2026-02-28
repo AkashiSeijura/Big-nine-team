@@ -10,7 +10,8 @@ from app.schemas.ticket import TicketOut, TicketUpdate, TicketCreate
 from app.schemas.chat import ChatMessageOut, ChatMessageCreate
 from app.routers.auth import get_current_user
 from app.models.user import User
-from app.services.ai_service import analyze_ticket_with_ai
+from app.services.ai_service import analyze_ticket_with_ai, generate_chat_reply
+from app.services.email_service import send_email_response
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 
@@ -24,9 +25,12 @@ async def process_ticket_ai(ticket_id: int, ticket_text: str):
             ticket.sentiment = ai_result.get("sentiment")
             ticket.category = ai_result.get("category")
             ticket.ai_response = ai_result.get("draft_response")
-            
-            # If AI is uncertain or it's very negative, we might flag it, 
-            # here we just rely on standard fields updated.
+            ticket.full_name = ticket.full_name or ai_result.get("full_name")
+            ticket.company = ticket.company or ai_result.get("company")
+            ticket.phone = ticket.phone or ai_result.get("phone")
+            ticket.device_serials = ticket.device_serials or ai_result.get("device_serials") or []
+            ticket.device_type = ticket.device_type or ai_result.get("device_type")
+            ticket.summary = ticket.summary or ai_result.get("summary")
             await session.commit()
 
 
@@ -114,10 +118,20 @@ async def send_response(
     if not ticket.ai_response:
         raise HTTPException(status_code=400, detail="Нет текста ответа")
 
-    # TODO: подключить SMTP-отправку на хакатоне
+    if not ticket.email:
+        raise HTTPException(status_code=400, detail="У заявки нет email адреса отправителя")
+
+    try:
+        subject = "Ответ на ваше обращение"
+        await send_email_response(ticket.email, subject, ticket.ai_response)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Ошибка отправки письма: {exc}")
+
     ticket.status = "closed"
     await db.commit()
-    return {"success": True, "message": "Ответ отправлен (заглушка)"}
+    return {"success": True, "message": "Ответ отправлен"}
 
 
 # ── Чат заявки ────────────────────────────────────────
@@ -142,10 +156,45 @@ async def add_chat_message(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    if not await db.get(Ticket, ticket_id):
+    ticket = await db.get(Ticket, ticket_id)
+    if not ticket:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
+
     msg = ChatMessage(ticket_id=ticket_id, role=payload.role, text=payload.text)
     db.add(msg)
+
+    # Если оператор запрашивает человека — обновляем статус
+    if "вызвать оператора" in payload.text.lower():
+        ticket.status = "needs_operator"
+
     await db.commit()
     await db.refresh(msg)
     return msg
+
+
+@router.post("/{ticket_id}/chat/reply", response_model=ChatMessageOut, status_code=status.HTTP_201_CREATED)
+async def ai_chat_reply(
+    ticket_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Generate and save an AI bot reply based on the full chat history."""
+    ticket = await db.get(Ticket, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
+
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.ticket_id == ticket_id)
+        .order_by(ChatMessage.created_at)
+    )
+    history = [{"role": m.role, "text": m.text} for m in result.scalars().all()]
+
+    ticket_context = ticket.original_email or ticket.summary or ""
+    reply_text = await generate_chat_reply(ticket_context, history)
+
+    bot_msg = ChatMessage(ticket_id=ticket_id, role="bot", text=reply_text)
+    db.add(bot_msg)
+    await db.commit()
+    await db.refresh(bot_msg)
+    return bot_msg

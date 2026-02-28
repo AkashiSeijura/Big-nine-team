@@ -117,6 +117,11 @@ export default function TicketsPage() {
     setTgIds((prev) => [...prev, '']);
   }
 
+  function handleTicketUpdate(updated) {
+    setSelected(updated);
+    setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  }
+
   return (
     <div className="crm-layout">
       <header className="crm-header">
@@ -212,8 +217,8 @@ export default function TicketsPage() {
             </div>
             <div className="crm-resize-handle" onMouseDown={onMouseDown} />
             <div className="crm-detail">
-              <TicketForm ticket={selected} />
-              <ChatWindow ticket={selected} />
+              <TicketForm ticket={selected} onTicketUpdate={handleTicketUpdate} />
+              <ChatWindow ticket={selected} onTicketUpdate={handleTicketUpdate} />
             </div>
           </div>
         )
